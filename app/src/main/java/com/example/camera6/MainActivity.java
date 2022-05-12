@@ -30,8 +30,10 @@ import android.widget.Button;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
@@ -44,20 +46,19 @@ import androidx.core.content.ContextCompat;
 public class MainActivity extends AppCompatActivity {
 
     public static final String myLog = "My Log";
-    public static final int delayRec = 10 * 1000; // время записи видео
+    public static final int delayRec = 5 * 1000; // время записи видео
 
     private CameraService myCameras = null;
     private CameraManager mCameraManager = null;
     private TextureView mImageView = null;
     private boolean isStartUserRecording = false;
+    private boolean cameraAlreadyRecording = false;
     private MediaRecorder mMediaRecorder = null;
     private HandlerThread mBackgroundThread;
     private Handler mBackgroundHandler = null;
     StartCameraSource myStartEvent;
-    StartCameraSource myTimerEvent;
     private View myUserRecord;
     private View myAutoRecord;
-
 
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -85,14 +86,14 @@ public class MainActivity extends AppCompatActivity {
 
         myStartEvent = new StartCameraSource();
         myStartEvent.setListeners(new Vector<StartCameraEventListener>());
-        myTimerEvent = new StartCameraSource();
-        myTimerEvent.setListeners(new Vector<StartCameraEventListener>());
         // слушатель нажатия на кнопку
         mButtonOpenCamera.setOnClickListener(v -> {//одна кнопка на включение и выключение
             if (!isStartUserRecording) {
                 isStartUserRecording = true;// сообщаем что камера включена
                 myUserRecord.setVisibility(View.VISIBLE);// делаем значок принудительной записи на панели видимым
-                myStartEvent.fireWorkspaceStart();
+                if (!cameraAlreadyRecording) {
+                    myStartEvent.fireWorkspaceStart();
+                }
             } else if (isStartUserRecording) {
                 myUserRecord.setVisibility(View.INVISIBLE);// делаем значок принудительной записи на панели видимым
                 isStartUserRecording = false;// сообщаем что камера выключена
@@ -112,13 +113,13 @@ public class MainActivity extends AppCompatActivity {
                         myCameras.startRecording();
                     }
                 });
-            }else {
-//                runOnUiThread(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        myCameras.stopRecordingVideo();
-//                    }
-//                });
+            } else {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        myCameras.stopRecordingVideo();
+                    }
+                });
             }
         }
     };
@@ -166,16 +167,16 @@ public class MainActivity extends AppCompatActivity {
 
     public class CameraService {
         private final String mCameraID = "0"; // выбираем какую камеру использовать 0 - задняя, 1 - фронтальная\
-        private final int screenDelay = 1000;
+        private final int screenDelay = 1500;
         private ScreenDetector mScreenDetector;
         private File mCurrentFile;
         private CameraDevice mCameraDevice = null;
         private CaptureRequest.Builder mPreviewBuilder;
         private CameraCaptureSession mSession;
         private ImageReader mImageReader;
-        private Timer timerForScreen = new Timer();
+        private Timer timerForScreen;
         Timer timerStopRec = new Timer();
-//        TimerThread myThread;
+        private List<Surface> surfaceList = new ArrayList<>();
 
         public CameraService(CameraManager cameraManager) {
             mCameraManager = cameraManager;
@@ -200,16 +201,27 @@ public class MainActivity extends AppCompatActivity {
 
 
         private void startCameraPreviewSession() {  // вывод изображения на экран во время
-//            myThread = new TimerThread(myTimerEvent);
+            Log.i(myLog, "startCameraPreviewSession");
+            surfaceList.clear();
+            timerForScreen = new Timer();
             SurfaceTexture texture = mImageView.getSurfaceTexture();
             mImageReader = ImageReader.newInstance(10, 10, ImageFormat.JPEG, 1);
             mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
             texture.setDefaultBufferSize(1920, 1080);
             Surface surface = new Surface(texture);
             try {
+                surfaceList.add(0, surface);
+                surfaceList.add(1, mImageReader.getSurface());
                 mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                 mPreviewBuilder.addTarget(surface);
-                mCameraDevice.createCaptureSession(Arrays.asList(surface, mImageReader.getSurface()), new CameraCaptureSession.StateCallback() {
+                try {
+// при запуске setUpMediaRecorder = null, и выдает ошибку  выдает ошибку даже если в if сравнить с null
+// чтоб не писать 2 метода для запуска программы в предпросмотре и при записи, заносив getSurface в try
+                    mPreviewBuilder.addTarget(mMediaRecorder.getSurface());
+                    surfaceList.add(2, mMediaRecorder.getSurface());
+                } catch (Exception e) {
+                }
+                mCameraDevice.createCaptureSession(surfaceList, new CameraCaptureSession.StateCallback() {
                     @Override
                     public void onConfigured(CameraCaptureSession session) {
                         mSession = session;
@@ -227,47 +239,14 @@ public class MainActivity extends AppCompatActivity {
             } catch (CameraAccessException e) {
                 e.printStackTrace();
             }
-//            myThread.start();
+            if(!cameraAlreadyRecording) {
             timerForScreen.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    myTimerEvent.fireWorkspaceStart();
+//                    myTimerEvent.fireWorkspaceStart();
+                    if(!cameraAlreadyRecording)     makePhoto();
                 }
             } , 0 , screenDelay);
-            myTimerEvent.addStartCameraListener(makePhotoListener);// Слушатель отвечающий за начало записи
-        }
-        private StartCameraEventListener makePhotoListener = new StartCameraEventListener() {
-            public void cameraStartEvent(StartCameraEvent event) {
-                    makePhoto();
-            }
-        };
-
-        private void startCameraRecording() {  // вывод изображения на экран во время
-            SurfaceTexture texture = mImageView.getSurfaceTexture();
-            texture.setDefaultBufferSize(1920, 1080);
-            Surface surface = new Surface(texture);
-            try {
-                mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-                mPreviewBuilder.addTarget(surface);
-                mPreviewBuilder.addTarget(mMediaRecorder.getSurface());
-
-                mCameraDevice.createCaptureSession(Arrays.asList(surface, mMediaRecorder.getSurface()), new CameraCaptureSession.StateCallback() {
-                    @Override
-                    public void onConfigured(CameraCaptureSession session) {
-                        mSession = session;
-                        try {
-                            mSession.setRepeatingRequest(mPreviewBuilder.build(), null, mBackgroundHandler);
-                        } catch (CameraAccessException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    @Override
-                    public void onConfigureFailed(CameraCaptureSession session) {
-                    }
-                }, mBackgroundHandler);
-            } catch (CameraAccessException e) {
-                e.printStackTrace();
             }
         }
 
@@ -291,6 +270,7 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+
         // Слушатель готовности фото и передача его на сравнение
         private final ImageReader.OnImageAvailableListener mOnImageAvailableListener
                 = new ImageReader.OnImageAvailableListener() {
@@ -299,44 +279,47 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     mScreenDetector = new ScreenDetector(reader.acquireNextImage(), myStartEvent);
                     mBackgroundHandler.post(mScreenDetector);
-                }catch (Exception e){Log.i(myLog , "acquireNextImage");}
+                } catch (Exception e) {
+                }
             }
         };
 
         public void startRecording() {
-           // timerForScreen.cancel();//проверить можно ли отключить, не уверен что правильно
-//            myThread.isInterrupted();
-            stopRepeatingMyRecord();
+            cameraAlreadyRecording = true;
+//            timerForScreen.cancel();//проверить можно ли отключить, не уверен что правильно
             myAutoRecord.setVisibility(View.VISIBLE);
             setUpMediaRecorder();
-            myCameras.startCameraRecording();
             mMediaRecorder.start();
+           myCameras.startCameraPreviewSession();
             timerStopRec.schedule(new TimerTask() {
                 @Override
                 public void run() {
-//                      myStartEvent.fireWorkspaceStop();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            myCameras.stopRecordingVideo();
-                        }
-                    });
-              }
+                    myStartEvent.fireWorkspaceStop();
+                }
             }, delayRec);
         }
 
         private void stopRecordingVideo() {
+
             myAutoRecord.setVisibility(View.INVISIBLE);
             mScreenDetector.setFirstStart();
-            stopRepeatingMyRecord();
-            mMediaRecorder.stop();
+//            stopRepeatingMyRecord();
+            try {
+                mMediaRecorder.stop();
+            }catch (Exception e){
+                Log.i(myLog , " mMediaRecorder.stop();");
+            }
+//            myCameras.startCameraPreviewSession();
             if (isStartUserRecording) {
-                myCameras.startCameraRecording();
-            } else myCameras.startCameraPreviewSession();
+                myStartEvent.fireWorkspaceStart();
+            } else {
+                cameraAlreadyRecording = false;
+                myCameras.startCameraPreviewSession();
+            }
 
         }
 
-        private void stopRepeatingMyRecord(){
+        private void stopRepeatingMyRecord() {
             try {
                 mSession.stopRepeating();
                 mSession.abortCaptures();
@@ -360,9 +343,13 @@ public class MainActivity extends AppCompatActivity {
             mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
             try {
                 mMediaRecorder.prepare();
+                Log.i(myLog, " mMediaRecorder.prepare() successful ");
             } catch (Exception e) {
+                Log.i(myLog, " mMediaRecorder.prepare() fail ");
             }
+
         }
+
         // генерация имени файла
         private String fileName() { // название файла в виде дата,месяц,год_час,минута,секунда
             Date dateNow = new Date();//("yyyy.MM.dd 'и время' hh:mm:ss a zzz");

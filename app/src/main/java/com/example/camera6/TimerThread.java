@@ -4,7 +4,7 @@ import android.util.Log;
 
 public class TimerThread extends Thread{
     private static StartCameraSource myTimerEvent;
-    private static int delay = 500;
+    private static int delay = 1000;
 
     public TimerThread(StartCameraSource myTimerEvent) {
         this.myTimerEvent = myTimerEvent;

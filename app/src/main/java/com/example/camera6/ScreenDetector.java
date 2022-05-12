@@ -31,14 +31,9 @@ class ScreenDetector implements Runnable {
         firstStart = true;
     }
 
-    public void setImage(Image image){
-        this.newImage = image;
-    }
-
     @Override
     public void run() {
         ByteBuffer buffer = newImage.getPlanes()[0].getBuffer();
-        Log.i(myLog , "newImage.close();");
         byte[] bytes = new byte[buffer.remaining()];
         buffer.get(bytes);
         newImage.close();
@@ -50,10 +45,8 @@ class ScreenDetector implements Runnable {
         double difference = getDifferencePercent();
         if(difference > maxDetection){
             myEvent.fireWorkspaceStart();
-            Log.i(myLog , "start record = " + difference);
         } else {
             oldScreenBitmap = newBitmap;
-            Log.i(myLog , "fireWorkspaceContinue = " + difference);
         }
     }
 
