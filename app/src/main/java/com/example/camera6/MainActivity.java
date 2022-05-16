@@ -210,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
                 mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                 mPreviewBuilder.addTarget(surface);
                 try {
-// при запуске setUpMediaRecorder = null, и выдает ошибку  выдает ошибку даже если в if сравнить с null
+// при запуске setUpMediaRecorder = null, и выдает ошибку даже если в if сравнить с null
 // чтоб не писать 2 метода для запуска программы в предпросмотре и при записи, заносив getSurface в try
                     mPreviewBuilder.addTarget(mMediaRecorder.getSurface());
                     surfaceList.add(2, mMediaRecorder.getSurface());
