@@ -57,7 +57,6 @@ public class MainActivity extends AppCompatActivity {
     private HandlerThread mBackgroundThread;
     private Handler mBackgroundHandler = null;
     StartCameraSource myStartEvent;
-    private View myUserRecord;
     private View myAutoRecord;
 
 
@@ -81,12 +80,12 @@ public class MainActivity extends AppCompatActivity {
 
         mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         myCameras = new CameraService(mCameraManager);
-        myUserRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
+        View myUserRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         myAutoRecord = findViewById(R.id.record); // находим иконку отвечающую за Принудительную запись
 
         myStartEvent = new StartCameraSource();
         myStartEvent.setListeners(new Vector<StartCameraEventListener>());
-        // слушатель нажатия на кнопку
+        // слушатель нажатия на кнопку с реализацией
         mButtonOpenCamera.setOnClickListener(v -> {//одна кнопка на включение и выключение
             if (!isStartUserRecording) {
                 isStartUserRecording = true;// сообщаем что камера включена
@@ -99,11 +98,11 @@ public class MainActivity extends AppCompatActivity {
                 isStartUserRecording = false;// сообщаем что камера выключена
             }
         });
-
         mImageView.setSurfaceTextureListener(mSurfaceTextureListener); // опрос создался ли экран
         myStartEvent.addStartCameraListener(myStartListener);// Слушатель отвечающий за начало записи
     }
 
+    //Реализация слушателя для запуска Записи
     private StartCameraEventListener myStartListener = new StartCameraEventListener() {
         public void cameraStartEvent(StartCameraEvent event) {
             if (event.getStart() == true) {
@@ -160,9 +159,7 @@ public class MainActivity extends AppCompatActivity {
             mBackgroundHandler = null;
         } catch (InterruptedException e) {
             e.printStackTrace();
-        } catch (NullPointerException e) {
-            Log.i(myLog, "mBackgroundThread.quitSafely();");
-        }
+        } catch (NullPointerException e) {  }
     }
 
     public class CameraService {
@@ -181,13 +178,12 @@ public class MainActivity extends AppCompatActivity {
         public CameraService(CameraManager cameraManager) {
             mCameraManager = cameraManager;
         }
-
+// открытие камеры
         private CameraDevice.StateCallback mCameraCallback = new CameraDevice.StateCallback() {
             @Override
             public void onOpened(CameraDevice camera) {
                 mCameraDevice = camera;
                 startCameraPreviewSession();
-
             }
 
             @Override
@@ -201,7 +197,6 @@ public class MainActivity extends AppCompatActivity {
 
 
         private void startCameraPreviewSession() {  // вывод изображения на экран во время
-            Log.i(myLog, "startCameraPreviewSession");
             surfaceList.clear();
             timerForScreen = new Timer();
             SurfaceTexture texture = mImageView.getSurfaceTexture();
@@ -231,11 +226,11 @@ public class MainActivity extends AppCompatActivity {
                             e.printStackTrace();
                         }
                     }
-
                     @Override
                     public void onConfigureFailed(CameraCaptureSession session) {
                     }
                 }, mBackgroundHandler);
+
             } catch (CameraAccessException e) {
                 e.printStackTrace();
             }
@@ -243,12 +238,12 @@ public class MainActivity extends AppCompatActivity {
             timerForScreen.schedule(new TimerTask() {
                 @Override
                 public void run() {
-//                    myTimerEvent.fireWorkspaceStart();
                     if(!cameraAlreadyRecording)     makePhoto();
                 }
-            } , 0 , screenDelay);
+            } , screenDelay , screenDelay);
             }
         }
+
 
         // Запрос на готовность фото
         public void makePhoto() {
@@ -284,9 +279,10 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+
         public void startRecording() {
             cameraAlreadyRecording = true;
-//            timerForScreen.cancel();//проверить можно ли отключить, не уверен что правильно
+            timerForScreen.cancel();//проверить можно ли отключить, не уверен что правильно
             myAutoRecord.setVisibility(View.VISIBLE);
             setUpMediaRecorder();
             mMediaRecorder.start();
@@ -303,13 +299,12 @@ public class MainActivity extends AppCompatActivity {
 
             myAutoRecord.setVisibility(View.INVISIBLE);
             mScreenDetector.setFirstStart();
-//            stopRepeatingMyRecord();
+            stopRepeatingMyRecord();
             try {
                 mMediaRecorder.stop();
             }catch (Exception e){
-                Log.i(myLog , " mMediaRecorder.stop();");
+                startRecording();
             }
-//            myCameras.startCameraPreviewSession();
             if (isStartUserRecording) {
                 myStartEvent.fireWorkspaceStart();
             } else {
@@ -346,16 +341,17 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(myLog, " mMediaRecorder.prepare() successful ");
             } catch (Exception e) {
                 Log.i(myLog, " mMediaRecorder.prepare() fail ");
+                mCurrentFile.delete();
+                setUpMediaRecorder();
             }
-
         }
-
         // генерация имени файла
         private String fileName() { // название файла в виде дата,месяц,год_час,минута,секунда
             Date dateNow = new Date();//("yyyy.MM.dd 'и время' hh:mm:ss a zzz");
             SimpleDateFormat formatForDateNow = new SimpleDateFormat("dd.MM.yyyy_hh:mm:ss");
             return ("" + formatForDateNow.format(dateNow) + ".mp4");
         }
+
 
         // Проверка разрешений на использование камеры
         @SuppressLint("NewApi")
