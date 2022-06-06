@@ -46,7 +46,7 @@ import androidx.core.content.ContextCompat;
 public class MainActivity extends AppCompatActivity {
 
     public static final String myLog = "My Log";
-    public static final int delayRec = 5 * 1000; // время записи видео
+    public static final int delayRec = 2 * 60 * 1000; // время записи видео
 
     private CameraService myCameras = null;
     private CameraManager mCameraManager = null;
@@ -58,6 +58,8 @@ public class MainActivity extends AppCompatActivity {
     private Handler mBackgroundHandler = null;
     StartCameraSource myStartEvent;
     private View myAutoRecord;
+    private HandlerThread mScreenThread;
+    private Handler mScreenHandler = null;
 
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -82,6 +84,8 @@ public class MainActivity extends AppCompatActivity {
         myCameras = new CameraService(mCameraManager);
         View myUserRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         myAutoRecord = findViewById(R.id.record); // находим иконку отвечающую за Принудительную запись
+
+        startScreenThread();
 
         myStartEvent = new StartCameraSource();
         myStartEvent.setListeners(new Vector<StartCameraEventListener>());
@@ -144,6 +148,11 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private void startScreenThread() {
+        mScreenThread = new HandlerThread("CameraScreen");
+        mScreenThread.start();
+        mScreenHandler = new Handler(mScreenThread.getLooper());
+    }
 
     private void startBackgroundThread() {
         mBackgroundThread = new HandlerThread("CameraBackground");
@@ -164,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
 
     public class CameraService {
         private final String mCameraID = "0"; // выбираем какую камеру использовать 0 - задняя, 1 - фронтальная\
-        private final int screenDelay = 1500;
+        private final int screenDelay = 1000;
         private ScreenDetector mScreenDetector;
         private File mCurrentFile;
         private CameraDevice mCameraDevice = null;
@@ -273,7 +282,8 @@ public class MainActivity extends AppCompatActivity {
             public void onImageAvailable(ImageReader reader) {
                 try {
                     mScreenDetector = new ScreenDetector(reader.acquireNextImage(), myStartEvent);
-                    mBackgroundHandler.post(mScreenDetector);
+                   // mBackgroundHandler.post(mScreenDetector);
+                    mScreenHandler.post(mScreenDetector);
                 } catch (Exception e) {
                 }
             }
@@ -329,7 +339,8 @@ public class MainActivity extends AppCompatActivity {
             mMediaRecorder = new MediaRecorder();
             mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
             mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-            mCurrentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), fileName());
+            //mCurrentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), fileName());
+            mCurrentFile = new File(createDirectory("DETECTION"), fileName());
             mMediaRecorder.setOutputFile(mCurrentFile.getAbsolutePath());
             CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
             mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
@@ -351,6 +362,30 @@ public class MainActivity extends AppCompatActivity {
             SimpleDateFormat formatForDateNow = new SimpleDateFormat("dd.MM.yyyy_hh:mm:ss");
             return ("" + formatForDateNow.format(dateNow) + ".mp4");
         }
+        //создание папки для видео
+        private File createDirectory(String name) {
+            File baseDir;
+            if (Build.VERSION.SDK_INT < 8) {
+                baseDir = Environment.getExternalStorageDirectory();
+            } else {
+                baseDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
+            }
+            if (baseDir == null)
+                return Environment.getExternalStorageDirectory();
+            File folder = new File(baseDir, name);
+            if (folder.exists()) {
+                return folder;
+            }
+            if (folder.isFile()) {
+                folder.delete();
+            }
+            if (folder.mkdirs()) {
+                return folder;
+            }
+            return Environment.getExternalStorageDirectory();
+        }
+
+
 
 
         // Проверка разрешений на использование камеры
