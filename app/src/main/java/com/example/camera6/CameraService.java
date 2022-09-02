@@ -17,6 +17,8 @@ import android.media.ImageReader;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
@@ -31,6 +33,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 import com.example.camera6.*;
 import androidx.annotation.NonNull;
+
+import static androidx.core.content.ContextCompat.checkSelfPermission;
 
 public class CameraService {
     private final String mCameraID = "0"; // выбираем какую камеру использовать 0 - задняя, 1 - фронтальная\
@@ -51,8 +55,8 @@ public class CameraService {
     private TextureView mImageView = null;
     private MediaRecorder mMediaRecorder = null;
     StartCameraSource myStartEvent;
-
-    private boolean cameraAlreadyRecording = false;
+    private Handler mBackgroundHandler = null;
+    private Handler mScreenHandler = null;
 
     public CameraService(CameraManager cameraManager , TextureView mImageView ,StartCameraSource myStartEvent) {
         mCameraManager = cameraManager;
@@ -114,11 +118,13 @@ public class CameraService {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-        if(!cameraAlreadyRecording) {
+        if(!MainActivity.isAutoRecordVisible()) {
             timerForScreen.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    if(!cameraAlreadyRecording)     makePhoto();
+                    if(!MainActivity.isAutoRecordVisible())  {
+                        makePhoto();
+                    }
                 }
             } , screenDelay , screenDelay);
         }
@@ -160,9 +166,7 @@ public class CameraService {
         }
     };
 
-
     public void startRecording() {
-        cameraAlreadyRecording = true;
         timerForScreen.cancel();//проверить можно ли отключить, не уверен что правильно
         MainActivity.iconAutoRecordReset();
         setUpMediaRecorder();
@@ -188,7 +192,6 @@ public class CameraService {
         if (MainActivity.isUserRecordVisible()) {
             myStartEvent.fireWorkspaceStart();
         } else {
-            cameraAlreadyRecording = false;
             this.startCameraPreviewSession();
         }
     }
@@ -254,22 +257,20 @@ public class CameraService {
         return Environment.getExternalStorageDirectory();
     }
 
-
-
-
     // Проверка разрешений на использование камеры
     @SuppressLint("NewApi")
     public void openCamera() {//проверяем, получено ли разрешение на использование камеры
         try {
-            if (ContextWrapper.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            if (checkSelfPermission( this.mImageView.getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                 mCameraManager.openCamera(mCameraID, mCameraCallback, null);
             }
         } catch (CameraAccessException e) {
         }
     }
 
-    public boolean getIsCameraAlreadyRecording(){
-        return cameraAlreadyRecording;
-    }
+    protected void setHalder(Handler mBackgroundHandler, Handler mScreenHandler ){
+        this.mBackgroundHandler = mBackgroundHandler;
+        this.mScreenHandler = mScreenHandler;
 
+    }
 }

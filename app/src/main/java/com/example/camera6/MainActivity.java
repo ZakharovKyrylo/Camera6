@@ -38,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {// = publick static void main(String args[]) //начало
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);// убираем заголовок
         setContentView(R.layout.activity_main);
@@ -68,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
         myUserRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         myAutoRecord = findViewById(R.id.record); // находим иконку отвечающую за Принудительную запись
         myCameras = new CameraService(mCameraManager , mImageView , myStartEvent );
+        myCameras.setHalder(mBackgroundHandler , mScreenHandler);
         myStartEvent = new StartCameraSource();
     }
 
@@ -75,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
         myStartEvent.setListeners(new Vector<StartCameraEventListener>());
         mButtonOpenCamera.setOnClickListener(v -> {// слушатель нажатия на кнопку с реализацией
             iconUserRecordReset();//одна кнопка на включение и выключение
-            if (!myCameras.getIsCameraAlreadyRecording()) {
+            if (!isAutoRecordVisible()) {
                 myStartEvent.fireWorkspaceStart();
             }
         });
@@ -104,6 +105,13 @@ public class MainActivity extends AppCompatActivity {
         }else {
             myAutoRecord.setVisibility(View.VISIBLE);
         }
+    }
+
+    public static boolean isAutoRecordVisible(){
+        if(myAutoRecord.getVisibility() ==  View.VISIBLE){
+            return true;
+        }
+        return false;
     }
 
     //Реализация слушателя для запуска Записи
