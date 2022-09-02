@@ -1,66 +1,40 @@
 package com.example.camera6;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
-import android.app.Notification;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.TotalCaptureResult;
-import android.media.CamcorderProfile;
-import android.media.ImageReader;
-import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.util.Log;
-import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 
-import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.Vector;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
 
-    public static final String myLog = "My Log";
-    public static final int delayRec = 2 * 60 * 1000; // время записи видео
+    public static final String myLog = "My Log - ";
 
     private CameraService myCameras = null;
     private CameraManager mCameraManager = null;
     private TextureView mImageView = null;
-    private boolean isStartUserRecording = false;
-    private boolean cameraAlreadyRecording = false;
-    private MediaRecorder mMediaRecorder = null;
     private HandlerThread mBackgroundThread;
     private Handler mBackgroundHandler = null;
     StartCameraSource myStartEvent;
-    private View myAutoRecord;
     private HandlerThread mScreenThread;
     private Handler mScreenHandler = null;
-
+    private Button mButtonOpenCamera;
+    private static View myUserRecord;
+    private static View myAutoRecord;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -69,6 +43,14 @@ public class MainActivity extends AppCompatActivity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);// убираем заголовок
         setContentView(R.layout.activity_main);
 
+        checkPermission();// проверка на подтверждение пользователя
+        initialization();
+        startScreenThread();
+        myListeners();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private void checkPermission(){
         // Запрашиваем разрешение на использования камеры и папок
         // БЕЗ ЭТОГО НЕ ЗАРАБОТАЕТ
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
@@ -77,53 +59,66 @@ public class MainActivity extends AppCompatActivity {
         ) {
             requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
+    }
+
+    private void initialization(){
         mImageView = findViewById(R.id.textureView);   //находим экран
-        Button mButtonOpenCamera = findViewById(R.id.button1);   //находим кнопку
-
+        mButtonOpenCamera = findViewById(R.id.button1);   //находим кнопку
         mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        myCameras = new CameraService(mCameraManager);
-        View myUserRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
+        myUserRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         myAutoRecord = findViewById(R.id.record); // находим иконку отвечающую за Принудительную запись
-
-        startScreenThread();
-
+        myCameras = new CameraService(mCameraManager , mImageView , myStartEvent );
         myStartEvent = new StartCameraSource();
+    }
+
+    private void myListeners(){
         myStartEvent.setListeners(new Vector<StartCameraEventListener>());
-        // слушатель нажатия на кнопку с реализацией
-        mButtonOpenCamera.setOnClickListener(v -> {//одна кнопка на включение и выключение
-            if (!isStartUserRecording) {
-                isStartUserRecording = true;// сообщаем что камера включена
-                myUserRecord.setVisibility(View.VISIBLE);// делаем значок принудительной записи на панели видимым
-                if (!cameraAlreadyRecording) {
-                    myStartEvent.fireWorkspaceStart();
-                }
-            } else if (isStartUserRecording) {
-                myUserRecord.setVisibility(View.INVISIBLE);// делаем значок принудительной записи на панели видимым
-                isStartUserRecording = false;// сообщаем что камера выключена
+        mButtonOpenCamera.setOnClickListener(v -> {// слушатель нажатия на кнопку с реализацией
+            iconUserRecordReset();//одна кнопка на включение и выключение
+            if (!myCameras.getIsCameraAlreadyRecording()) {
+                myStartEvent.fireWorkspaceStart();
             }
         });
         mImageView.setSurfaceTextureListener(mSurfaceTextureListener); // опрос создался ли экран
         myStartEvent.addStartCameraListener(myStartListener);// Слушатель отвечающий за начало записи
     }
 
+    private void iconUserRecordReset(){
+        if(isUserRecordVisible()){
+            myUserRecord.setVisibility(View.INVISIBLE);
+        }else {
+            myUserRecord.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public static boolean isUserRecordVisible(){
+        if(myUserRecord.getVisibility() ==  View.VISIBLE){
+            return true;
+        }
+        return false;
+    }
+
+    protected static void iconAutoRecordReset(){
+        if(myAutoRecord.getVisibility() ==  View.VISIBLE){
+            myAutoRecord.setVisibility(View.INVISIBLE);
+        }else {
+            myAutoRecord.setVisibility(View.VISIBLE);
+        }
+    }
+
     //Реализация слушателя для запуска Записи
     private StartCameraEventListener myStartListener = new StartCameraEventListener() {
         public void cameraStartEvent(StartCameraEvent event) {
-            if (event.getStart() == true) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (event.getStart() == true) {
                         myCameras.startRecording();
-                    }
-                });
-            } else {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
+                    } else {
                         myCameras.stopRecordingVideo();
                     }
-                });
-            }
+                }
+            });
         }
     };
 
@@ -170,10 +165,13 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         } catch (NullPointerException e) {  }
     }
-
+/*
     public class CameraService {
         private final String mCameraID = "0"; // выбираем какую камеру использовать 0 - задняя, 1 - фронтальная\
+
+        private static final int delayRec = 2 * 60 * 1000; // время записи видео
         private final int screenDelay = 1000;
+
         private ScreenDetector mScreenDetector;
         private File mCurrentFile;
         private CameraDevice mCameraDevice = null;
@@ -183,8 +181,9 @@ public class MainActivity extends AppCompatActivity {
         private Timer timerForScreen;
         Timer timerStopRec = new Timer();
         private List<Surface> surfaceList = new ArrayList<>();
+        private MediaRecorder mMediaRecorder = null;
 
-        public CameraService(CameraManager cameraManager) {
+        public CameraService(CameraManager cameraManager , TextureView mImageView) {
             mCameraManager = cameraManager;
         }
 // открытие камеры
@@ -315,7 +314,7 @@ public class MainActivity extends AppCompatActivity {
             }catch (Exception e){
                 startRecording();
             }
-            if (isStartUserRecording) {
+            if (myUserRecord.getVisibility() ==  View.VISIBLE) {
                 myStartEvent.fireWorkspaceStart();
             } else {
                 cameraAlreadyRecording = false;
@@ -400,7 +399,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
-
+*/
     @Override
     public void onPause() {
         stopBackgroundThread();
@@ -412,6 +411,4 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         startBackgroundThread();
     }
-
-
 }
