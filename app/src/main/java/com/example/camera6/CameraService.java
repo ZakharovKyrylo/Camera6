@@ -2,7 +2,6 @@ package com.example.camera6;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
@@ -18,11 +17,9 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
-import android.view.View;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -31,16 +28,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import com.example.camera6.*;
+
 import androidx.annotation.NonNull;
 
 import static androidx.core.content.ContextCompat.checkSelfPermission;
+import static com.example.camera6.MainActivity.myLog;
 
 public class CameraService {
     private final String mCameraID = "0"; // выбираем какую камеру использовать 0 - задняя, 1 - фронтальная\
-    private static final String myLog = "My Log";
+
     private static final int delayRec = 2 * 60 * 1000; // время записи видео
-    private final int screenDelay = 1000;
+    private static final int screenDelay = 1000;
 
     private ScreenDetector mScreenDetector;
     private File mCurrentFile;
@@ -63,6 +61,12 @@ public class CameraService {
         this.mImageView = mImageView;
         this.myStartEvent = myStartEvent;
     }
+
+    protected void setHandler(Handler mBackgroundHandler, Handler mScreenHandler ){
+        this.mBackgroundHandler = mBackgroundHandler;
+        this.mScreenHandler = mScreenHandler;
+    }
+
     // открытие камеры
     private CameraDevice.StateCallback mCameraCallback = new CameraDevice.StateCallback() {
         @Override
@@ -211,7 +215,6 @@ public class CameraService {
         mMediaRecorder = new MediaRecorder();
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        //mCurrentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), fileName());
         mCurrentFile = new File(createDirectory("DETECTION"), fileName());
         mMediaRecorder.setOutputFile(mCurrentFile.getAbsolutePath());
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
@@ -221,9 +224,7 @@ public class CameraService {
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         try {
             mMediaRecorder.prepare();
-            Log.i(myLog, " mMediaRecorder.prepare() successful ");
         } catch (Exception e) {
-            Log.i(myLog, " mMediaRecorder.prepare() fail ");
             mCurrentFile.delete();
             setUpMediaRecorder();
         }
@@ -266,11 +267,5 @@ public class CameraService {
             }
         } catch (CameraAccessException e) {
         }
-    }
-
-    protected void setHalder(Handler mBackgroundHandler, Handler mScreenHandler ){
-        this.mBackgroundHandler = mBackgroundHandler;
-        this.mScreenHandler = mScreenHandler;
-
     }
 }

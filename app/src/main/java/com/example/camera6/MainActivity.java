@@ -23,18 +23,19 @@ import androidx.core.content.ContextCompat;
 public class MainActivity extends AppCompatActivity {
 
     public static final String myLog = "My Log - ";
+    private static View myUserRecord;
+    private static View myAutoRecord;
 
     private CameraService myCameras = null;
     private CameraManager mCameraManager = null;
     private TextureView mImageView = null;
     private HandlerThread mBackgroundThread;
     private Handler mBackgroundHandler = null;
-    StartCameraSource myStartEvent;
+    private StartCameraSource myStartEvent;
     private HandlerThread mScreenThread;
     private Handler mScreenHandler = null;
     private Button mButtonOpenCamera;
-    private static View myUserRecord;
-    private static View myAutoRecord;
+
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -68,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
         myUserRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         myAutoRecord = findViewById(R.id.record); // находим иконку отвечающую за Принудительную запись
         myCameras = new CameraService(mCameraManager , mImageView , myStartEvent );
-        myCameras.setHalder(mBackgroundHandler , mScreenHandler);
+        myCameras.setHandler(mBackgroundHandler , mScreenHandler);
         myStartEvent = new StartCameraSource();
     }
 
@@ -408,6 +409,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 */
+
     @Override
     public void onPause() {
         stopBackgroundThread();
