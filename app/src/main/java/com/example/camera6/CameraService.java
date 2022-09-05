@@ -17,6 +17,7 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
@@ -37,8 +38,9 @@ import static com.example.camera6.MainActivity.myLog;
 public class CameraService {
     private final String mCameraID = "0"; // выбираем какую камеру использовать 0 - задняя, 1 - фронтальная\
 
-    private static final int delayRec = 2 * 60 * 1000; // время записи видео
-    private static final int screenDelay = 1000;
+ //   private static final int recTime = 2 * 60 * 1000;
+    private static final int recTime = 8 * 1000;
+    private static final int screenDelay = 1000; // ms
 
     private ScreenDetector mScreenDetector;
     private File mCurrentFile;
@@ -55,16 +57,14 @@ public class CameraService {
     StartCameraSource myStartEvent;
     private Handler mBackgroundHandler = null;
     private Handler mScreenHandler = null;
+    private HandlerThread mBackgroundThread;
+    private HandlerThread mScreenThread;
 
     public CameraService(CameraManager cameraManager , TextureView mImageView ,StartCameraSource myStartEvent) {
-        mCameraManager = cameraManager;
+        this.mCameraManager = cameraManager;
         this.mImageView = mImageView;
         this.myStartEvent = myStartEvent;
-    }
-
-    protected void setHandler(Handler mBackgroundHandler, Handler mScreenHandler ){
-        this.mBackgroundHandler = mBackgroundHandler;
-        this.mScreenHandler = mScreenHandler;
+        startScreenThread();
     }
 
     // открытие камеры
@@ -83,6 +83,16 @@ public class CameraService {
         public void onError(CameraDevice camera, int error) {
         }
     };
+
+    @SuppressLint("NewApi")
+    public void openCamera() {//проверяем, получено ли разрешение на использование камеры
+        try {
+            if (checkSelfPermission( this.mImageView.getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                mCameraManager.openCamera(mCameraID, mCameraCallback, null);
+            }
+        } catch (CameraAccessException e) {
+        }
+    }
 
     private void startCameraPreviewSession() {  // вывод изображения на экран во время
         surfaceList.clear();
@@ -126,14 +136,13 @@ public class CameraService {
             timerForScreen.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    if(!MainActivity.isAutoRecordVisible())  {
+                    if(!MainActivity.isAutoRecordVisible())   {
                         makePhoto();
                     }
                 }
             } , screenDelay , screenDelay);
         }
     }
-
 
     // Запрос на готовность фото
     public void makePhoto() {
@@ -151,6 +160,7 @@ public class CameraService {
                 }
             };
             mSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundHandler);
+        //    mSession.capture(captureBuilder.build(), CaptureCallback, mScreenHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -171,7 +181,7 @@ public class CameraService {
     };
 
     public void startRecording() {
-        timerForScreen.cancel();//проверить можно ли отключить, не уверен что правильно
+        timerForScreen.cancel();
         MainActivity.iconAutoRecordReset();
         setUpMediaRecorder();
         mMediaRecorder.start();
@@ -181,7 +191,7 @@ public class CameraService {
             public void run() {
                 myStartEvent.fireWorkspaceStop();
             }
-        }, delayRec);
+        }, recTime);
     }
 
     public void stopRecordingVideo() {
@@ -258,14 +268,28 @@ public class CameraService {
         return Environment.getExternalStorageDirectory();
     }
 
-    // Проверка разрешений на использование камеры
-    @SuppressLint("NewApi")
-    public void openCamera() {//проверяем, получено ли разрешение на использование камеры
-        try {
-            if (checkSelfPermission( this.mImageView.getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                mCameraManager.openCamera(mCameraID, mCameraCallback, null);
-            }
-        } catch (CameraAccessException e) {
-        }
+    protected void startScreenThread() {
+        mScreenThread = new HandlerThread("CameraScreen");
+        mScreenThread.start();
+        mScreenHandler = new Handler(mScreenThread.getLooper());
     }
+
+    protected void startBackgroundThread() {
+        mBackgroundThread = new HandlerThread("CameraBackground");
+        mBackgroundThread.start();
+        mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
+    }
+
+    protected void stopBackgroundThread() {
+        try {
+            mBackgroundThread.quitSafely();
+            mBackgroundThread.join();
+            mBackgroundThread = null;
+            mBackgroundHandler = null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {  }
+    }
+
+
 }

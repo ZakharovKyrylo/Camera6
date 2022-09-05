@@ -29,11 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private CameraService myCameras = null;
     private CameraManager mCameraManager = null;
     private TextureView mImageView = null;
-    private HandlerThread mBackgroundThread;
-    private Handler mBackgroundHandler = null;
     private StartCameraSource myStartEvent;
-    private HandlerThread mScreenThread;
-    private Handler mScreenHandler = null;
     private Button mButtonOpenCamera;
 
 
@@ -46,7 +42,6 @@ public class MainActivity extends AppCompatActivity {
 
         checkPermission();// проверка на подтверждение пользователя
         initialization();
-        startScreenThread();
         myListeners();
     }
 
@@ -68,9 +63,8 @@ public class MainActivity extends AppCompatActivity {
         mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         myUserRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         myAutoRecord = findViewById(R.id.record); // находим иконку отвечающую за Принудительную запись
-        myCameras = new CameraService(mCameraManager , mImageView , myStartEvent );
-        myCameras.setHandler(mBackgroundHandler , mScreenHandler);
         myStartEvent = new StartCameraSource();
+        myCameras = new CameraService(mCameraManager , mImageView , myStartEvent );
     }
 
     private void myListeners(){
@@ -412,13 +406,13 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onPause() {
-        stopBackgroundThread();
+        myCameras.stopBackgroundThread();
         super.onPause();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        startBackgroundThread();
+        myCameras.startBackgroundThread();
     }
 }
