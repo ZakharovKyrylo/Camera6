@@ -33,14 +33,10 @@ import java.util.TimerTask;
 import androidx.annotation.NonNull;
 
 import static androidx.core.content.ContextCompat.checkSelfPermission;
-import static com.example.camera6.MainActivity.myLog;
+import static com.example.camera6.MainActivity.*;
+import static com.example.camera6.AllValueToChange.*;
 
 public class CameraService {
-    private final String mCameraID = "0"; // выбираем какую камеру использовать 0 - задняя, 1 - фронтальная\
-
- //   private static final int recTime = 2 * 60 * 1000;
-    private static final int recTime = 8 * 1000;
-    private static final int screenDelay = 1000; // ms
 
     private ScreenDetector mScreenDetector;
     private File mCurrentFile;
@@ -59,12 +55,14 @@ public class CameraService {
     private Handler mScreenHandler = null;
     private HandlerThread mBackgroundThread;
     private HandlerThread mScreenThread;
+    CreateMyFile createMyFile;
 
     public CameraService(CameraManager cameraManager , TextureView mImageView ,StartCameraSource myStartEvent) {
         this.mCameraManager = cameraManager;
         this.mImageView = mImageView;
         this.myStartEvent = myStartEvent;
         startScreenThread();
+        createMyFile = new CreateMyFile(mMediaRecorder);
     }
 
     // открытие камеры
@@ -94,11 +92,12 @@ public class CameraService {
         }
     }
 
+    // ToDo
     private void startCameraPreviewSession() {  // вывод изображения на экран во время
         surfaceList.clear();
         timerForScreen = new Timer();
         SurfaceTexture texture = mImageView.getSurfaceTexture();
-        mImageReader = ImageReader.newInstance(10, 10, ImageFormat.JPEG, 1);
+        mImageReader = ImageReader.newInstance(widthScreen, heightScreen, ImageFormat.JPEG, 1);
         mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
         texture.setDefaultBufferSize(1920, 1080);
         Surface surface = new Surface(texture);
@@ -132,11 +131,11 @@ public class CameraService {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-        if(!MainActivity.isAutoRecordVisible()) {
+        if(!isAutoRecordVisible()) {
             timerForScreen.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    if(!MainActivity.isAutoRecordVisible())   {
+                    if(!isAutoRecordVisible())   {
                         makePhoto();
                     }
                 }
@@ -183,7 +182,8 @@ public class CameraService {
     public void startRecording() {
         timerForScreen.cancel();
         MainActivity.iconAutoRecordReset();
-        setUpMediaRecorder();
+        createMyFile.setUpMediaRecorder();
+        mMediaRecorder = createMyFile.getMediaRecorder();
         mMediaRecorder.start();
         this.startCameraPreviewSession();
         timerStopRec.schedule(new TimerTask() {
@@ -218,54 +218,6 @@ public class CameraService {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-    }
-
-    //подготовка камеры к записи
-    private void setUpMediaRecorder() {
-        mMediaRecorder = new MediaRecorder();
-        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-        mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        mCurrentFile = new File(createDirectory("DETECTION"), fileName());
-        mMediaRecorder.setOutputFile(mCurrentFile.getAbsolutePath());
-        CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
-        mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
-        mMediaRecorder.setVideoSize(profile.videoFrameWidth, profile.videoFrameHeight);
-        mMediaRecorder.setVideoEncodingBitRate(profile.videoBitRate);
-        mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        try {
-            mMediaRecorder.prepare();
-        } catch (Exception e) {
-            mCurrentFile.delete();
-            setUpMediaRecorder();
-        }
-    }
-    // генерация имени файла
-    private String fileName() { // название файла в виде дата,месяц,год_час,минута,секунда
-        Date dateNow = new Date();//("yyyy.MM.dd 'и время' hh:mm:ss a zzz");
-        SimpleDateFormat formatForDateNow = new SimpleDateFormat("dd.MM.yyyy_hh:mm:ss");
-        return ("" + formatForDateNow.format(dateNow) + ".mp4");
-    }
-    //создание папки для видео
-    private File createDirectory(String name) {
-        File baseDir;
-        if (Build.VERSION.SDK_INT < 8) {
-            baseDir = Environment.getExternalStorageDirectory();
-        } else {
-            baseDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-        }
-        if (baseDir == null)
-            return Environment.getExternalStorageDirectory();
-        File folder = new File(baseDir, name);
-        if (folder.exists()) {
-            return folder;
-        }
-        if (folder.isFile()) {
-            folder.delete();
-        }
-        if (folder.mkdirs()) {
-            return folder;
-        }
-        return Environment.getExternalStorageDirectory();
     }
 
     protected void startScreenThread() {

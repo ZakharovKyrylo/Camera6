@@ -10,10 +10,10 @@ import java.io.File;
 import java.nio.ByteBuffer;
 
 import static java.lang.Thread.sleep;
+import static com.example.camera6.AllValueToChange.*;
 
 class ScreenDetector implements Runnable {
-    private static final String myLog = "My Log ScreenDetector";
-    private final int maxDetection =20;
+
     private static int detected;
     private static boolean firstStart = true;
     private static boolean letStart = false;
