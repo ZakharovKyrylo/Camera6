@@ -15,8 +15,8 @@ public class CreateMyFile {
     private File mCurrentFile;
     private MediaRecorder mMediaRecorder;
 
-    public CreateMyFile(MediaRecorder mMediaRecorder ){
-        this.mMediaRecorder = mMediaRecorder;
+    public MediaRecorder getMediaRecorder() {
+        return mMediaRecorder;
     }
 
     public void setUpMediaRecorder() {
@@ -38,15 +38,13 @@ public class CreateMyFile {
         }
     }
 
-    public MediaRecorder getMediaRecorder(){
-        return mMediaRecorder;
-    }
     // генерация имени файла
     private String generateFileName() { // название файла в виде дата,месяц,год_час,минута,секунда
         Date dateNow = new Date();//("yyyy.MM.dd 'и время' hh:mm:ss a zzz");
         SimpleDateFormat formatForDateNow = new SimpleDateFormat("dd.MM.yyyy_hh:mm:ss");
         return ("" + formatForDateNow.format(dateNow) + ".mp4");
     }
+
     //создание папки для видео
     private File createDirectory(String name) {
         File baseDir;

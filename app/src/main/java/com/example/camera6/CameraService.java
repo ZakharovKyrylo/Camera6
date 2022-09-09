@@ -11,21 +11,15 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.TotalCaptureResult;
-import android.media.CamcorderProfile;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
-import android.os.Build;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 
-import java.io.File;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -33,8 +27,8 @@ import java.util.TimerTask;
 import androidx.annotation.NonNull;
 
 import static androidx.core.content.ContextCompat.checkSelfPermission;
-import static com.example.camera6.MainActivity.*;
 import static com.example.camera6.AllValueToChange.*;
+import static com.example.camera6.MainActivity.isAutoRecordVisible;
 
 public class CameraService {
 
@@ -44,24 +38,24 @@ public class CameraService {
     private CameraCaptureSession mSession;
     private ImageReader mImageReader;
     private Timer timerForScreen;
-    Timer timerStopRec = new Timer();
+    private Timer timerStopRec = new Timer();
     private List<Surface> surfaceList = new ArrayList<>();
-    private CameraManager mCameraManager = null;
-    private TextureView mImageView = null;
+    private CameraManager mCameraManager;
+    private TextureView mImageView;
     private MediaRecorder mMediaRecorder = null;
-    StartCameraSource myStartEvent;
+    private StartCameraSource myStartEvent;
     private Handler mBackgroundHandler = null;
     private Handler mScreenHandler = null;
     private HandlerThread mBackgroundThread;
     private HandlerThread mScreenThread;
-    CreateMyFile createMyFile;
+    private CreateMyFile createMyFile = new CreateMyFile();
 
-    public CameraService(CameraManager cameraManager , TextureView mImageView ,StartCameraSource myStartEvent) {
+    public CameraService(CameraManager cameraManager, TextureView mImageView, StartCameraSource myStartEvent) {
         this.mCameraManager = cameraManager;
         this.mImageView = mImageView;
         this.myStartEvent = myStartEvent;
         startScreenThread();
-        createMyFile = new CreateMyFile(mMediaRecorder);
+        startBackgroundThread();
     }
 
     // открытие камеры
@@ -84,10 +78,11 @@ public class CameraService {
     @SuppressLint("NewApi")
     public void openCamera() {//проверяем, получено ли разрешение на использование камеры
         try {
-            if (checkSelfPermission( this.mImageView.getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            if (checkSelfPermission(this.mImageView.getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                 mCameraManager.openCamera(mCameraID, mCameraCallback, null);
             }
         } catch (CameraAccessException e) {
+            Log.i(myLog, e.toString());
         }
     }
 
@@ -111,6 +106,7 @@ public class CameraService {
                 mPreviewBuilder.addTarget(mMediaRecorder.getSurface());
                 surfaceList.add(2, mMediaRecorder.getSurface());
             } catch (Exception e) {
+                Log.i(myLog, e.toString());
             }
             mCameraDevice.createCaptureSession(surfaceList, new CameraCaptureSession.StateCallback() {
                 @Override
@@ -122,6 +118,7 @@ public class CameraService {
                         e.printStackTrace();
                     }
                 }
+
                 @Override
                 public void onConfigureFailed(CameraCaptureSession session) {
                 }
@@ -130,20 +127,22 @@ public class CameraService {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-        if(!isAutoRecordVisible()) {
+        startTimerForScreen();
+    }
+
+    private void startTimerForScreen() {
+        if (!isAutoRecordVisible()) {
             timerForScreen.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    if(!isAutoRecordVisible())   {
-                        makePhoto();
-                    }
+                    makePhoto();
                 }
-            } , screenDelay , screenDelay);
+            }, screenDelay, screenDelay);
         }
     }
 
     // Запрос на готовность фото
-    public void makePhoto() {
+    private void makePhoto() {
         try {
             // This is the CaptureRequest.Builder that we use to take a picture.
             final CaptureRequest.Builder captureBuilder =
@@ -158,7 +157,7 @@ public class CameraService {
                 }
             };
             mSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundHandler);
-        //    mSession.capture(captureBuilder.build(), CaptureCallback, mScreenHandler);
+            //    mSession.capture(captureBuilder.build(), CaptureCallback, mScreenHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -174,6 +173,7 @@ public class CameraService {
                 // mBackgroundHandler.post(mScreenDetector);
                 mScreenHandler.post(mScreenDetector);
             } catch (Exception e) {
+                Log.i(myLog, e.toString());
             }
         }
     };
@@ -199,7 +199,7 @@ public class CameraService {
         stopRepeatingMyRecord();
         try {
             mMediaRecorder.stop();
-        }catch (Exception e){
+        } catch (Exception e) {
             startRecording();
         }
         if (MainActivity.isUserRecordVisible()) {
@@ -239,8 +239,8 @@ public class CameraService {
             mBackgroundHandler = null;
         } catch (InterruptedException e) {
             e.printStackTrace();
-        } catch (NullPointerException e) {  }
+        } catch (NullPointerException e) {
+            Log.i(myLog, e.toString());
+        }
     }
-
-
 }

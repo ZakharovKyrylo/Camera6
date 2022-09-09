@@ -18,6 +18,7 @@ import java.util.Vector;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+
 import static com.example.camera6.AllValueToChange.*;
 
 public class MainActivity extends AppCompatActivity {
@@ -45,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
-    private void checkPermission(){
+    private void checkPermission() {
         // Запрашиваем разрешение на использования камеры и папок
         // БЕЗ ЭТОГО НЕ ЗАРАБОТАЕТ
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
@@ -56,17 +57,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void initialization(){
+    private void initialization() {
         mImageView = findViewById(R.id.textureView);   //находим экран
         userStartStopRecordButton = findViewById(R.id.userStartStopRecordButton);   //находим кнопку
         userRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         autoRecord = findViewById(R.id.autoRecord); // находим иконку отвечающую за Принудительную запись
         myStartEvent = new StartCameraSource();
         mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        myCameras = new CameraService(mCameraManager , mImageView , myStartEvent );
+        myCameras = new CameraService(mCameraManager, mImageView, myStartEvent);
     }
 
-    private void myListeners(){
+    private void myListeners() {
         myStartEvent.setListeners(new Vector<StartCameraEventListener>());
         userStartStopRecordButton.setOnClickListener(v -> {// слушатель нажатия на кнопку с реализацией
             iconUserRecordReset();//одна кнопка на включение и выключение
@@ -85,10 +86,10 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     if (event.getStart() == true) {
-                        Log.i(myLog , "Start");
+                        Log.i(myLog, "Start");
                         myCameras.startRecording();
                     } else {
-                        Log.i(myLog , "Stop");
+                        Log.i(myLog, "Stop");
                         myCameras.stopRecordingVideo();
                     }
                 }
@@ -117,31 +118,31 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private void iconUserRecordReset(){
-        if(isUserRecordVisible()){
+    private void iconUserRecordReset() {
+        if (isUserRecordVisible()) {
             userRecord.setVisibility(View.INVISIBLE);
-        }else {
+        } else {
             userRecord.setVisibility(View.VISIBLE);
         }
     }
 
-    public static boolean isUserRecordVisible(){
-        if(userRecord.getVisibility() ==  View.VISIBLE){ //  использую иконки записи как флаги
+    public static boolean isUserRecordVisible() {
+        if (userRecord.getVisibility() == View.VISIBLE) { //  использую иконки записи как флаги
             return true;
         }
         return false;
     }
 
-    protected static void iconAutoRecordReset(){
-        if(autoRecord.getVisibility() ==  View.VISIBLE){
+    protected static void iconAutoRecordReset() {
+        if (autoRecord.getVisibility() == View.VISIBLE) {
             autoRecord.setVisibility(View.INVISIBLE);
-        }else {
+        } else {
             autoRecord.setVisibility(View.VISIBLE);
         }
     }
 
-    public static boolean isAutoRecordVisible(){
-        if(autoRecord.getVisibility() ==  View.VISIBLE){ //  использую иконки записи как флаги
+    public static boolean isAutoRecordVisible() {
+        if (autoRecord.getVisibility() == View.VISIBLE) { //  использую иконки записи как флаги
             return true;
         }
         return false;
@@ -149,13 +150,13 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onPause() {
-        myCameras.stopBackgroundThread();
+        //       myCameras.stopBackgroundThread();
         super.onPause();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        myCameras.startBackgroundThread();
+        //      myCameras.startBackgroundThread();
     }
 }
