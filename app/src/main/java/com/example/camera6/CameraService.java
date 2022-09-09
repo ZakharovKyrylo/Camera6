@@ -59,7 +59,7 @@ public class CameraService {
     }
 
     // открытие камеры
-    private CameraDevice.StateCallback mCameraCallback = new CameraDevice.StateCallback() {
+    private final CameraDevice.StateCallback mCameraCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice camera) {
             mCameraDevice = camera;
@@ -96,38 +96,42 @@ public class CameraService {
         texture.setDefaultBufferSize(1920, 1080);
         Surface surface = new Surface(texture);
         try {
-            surfaceList.add(0, surface);
-            surfaceList.add(1, mImageReader.getSurface());
+            surfaceList.add(surface);
+            surfaceList.add(mImageReader.getSurface());
             mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             mPreviewBuilder.addTarget(surface);
-            try {
-// при запуске setUpMediaRecorder = null, и выдает ошибку  выдает ошибку даже если в if сравнить с null
-// чтоб не писать 2 метода для запуска программы в предпросмотре и при записи, заносив getSurface в try
-                mPreviewBuilder.addTarget(mMediaRecorder.getSurface());
-                surfaceList.add(2, mMediaRecorder.getSurface());
-            } catch (Exception e) {
-                Log.i(myLog, e.toString());
-            }
-            mCameraDevice.createCaptureSession(surfaceList, new CameraCaptureSession.StateCallback() {
-                @Override
-                public void onConfigured(CameraCaptureSession session) {
-                    mSession = session;
-                    try {
-                        mSession.setRepeatingRequest(mPreviewBuilder.build(), null, mBackgroundHandler);
-                    } catch (CameraAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                @Override
-                public void onConfigureFailed(CameraCaptureSession session) {
-                }
-            }, mBackgroundHandler);
-
+            createCameraDevice();
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
         startTimerForScreen();
+    }
+
+    private void startRecordSession(){
+        mPreviewBuilder.addTarget(mMediaRecorder.getSurface());
+        surfaceList.set(1, mMediaRecorder.getSurface());
+        try {
+            createCameraDevice();
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createCameraDevice() throws CameraAccessException{
+        mCameraDevice.createCaptureSession(surfaceList, new CameraCaptureSession.StateCallback() {
+            @Override
+            public void onConfigured(CameraCaptureSession session) {
+                mSession = session;
+                try {
+                    mSession.setRepeatingRequest(mPreviewBuilder.build(), null, mBackgroundHandler);
+                } catch (CameraAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+            @Override
+            public void onConfigureFailed(CameraCaptureSession session) {
+            }
+        }, mBackgroundHandler);
     }
 
     private void startTimerForScreen() {
@@ -184,13 +188,14 @@ public class CameraService {
         createMyFile.setUpMediaRecorder();
         mMediaRecorder = createMyFile.getMediaRecorder();
         mMediaRecorder.start();
-        this.startCameraPreviewSession();
+        startRecordSession();
+//        this.startCameraPreviewSession();
         timerStopRec.schedule(new TimerTask() {
             @Override
             public void run() {
                 myStartEvent.fireWorkspaceStop();
             }
-        }, recTime);
+        }, recordTime);
     }
 
     public void stopRecordingVideo() {
@@ -230,7 +235,7 @@ public class CameraService {
         mBackgroundThread.start();
         mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
     }
-
+/*
     protected void stopBackgroundThread() {
         try {
             mBackgroundThread.quitSafely();
@@ -243,4 +248,5 @@ public class CameraService {
             Log.i(myLog, e.toString());
         }
     }
+*/
 }
