@@ -39,7 +39,6 @@ import static com.example.camera6.AllValueToChange.*;
 public class CameraService {
 
     private ScreenDetector mScreenDetector;
-    private File mCurrentFile;
     private CameraDevice mCameraDevice = null;
     private CaptureRequest.Builder mPreviewBuilder;
     private CameraCaptureSession mSession;

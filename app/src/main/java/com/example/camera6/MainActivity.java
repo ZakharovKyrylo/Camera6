@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private CameraManager mCameraManager = null;
     private TextureView mImageView = null;
     private StartCameraSource myStartEvent;
-    private Button mButtonOpenCamera;
+    private Button userStartStopRecordButton;
 
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -58,17 +58,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void initialization(){
         mImageView = findViewById(R.id.textureView);   //находим экран
-        mButtonOpenCamera = findViewById(R.id.userStartStopRecordButton);   //находим кнопку
-        mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        userStartStopRecordButton = findViewById(R.id.userStartStopRecordButton);   //находим кнопку
         userRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         autoRecord = findViewById(R.id.autoRecord); // находим иконку отвечающую за Принудительную запись
         myStartEvent = new StartCameraSource();
+        mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         myCameras = new CameraService(mCameraManager , mImageView , myStartEvent );
     }
 
     private void myListeners(){
         myStartEvent.setListeners(new Vector<StartCameraEventListener>());
-        mButtonOpenCamera.setOnClickListener(v -> {// слушатель нажатия на кнопку с реализацией
+        userStartStopRecordButton.setOnClickListener(v -> {// слушатель нажатия на кнопку с реализацией
             iconUserRecordReset();//одна кнопка на включение и выключение
             if (!isAutoRecordVisible()) {
                 myStartEvent.fireWorkspaceStart();
