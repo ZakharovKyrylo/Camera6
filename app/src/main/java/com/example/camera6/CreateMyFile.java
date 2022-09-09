@@ -12,7 +12,6 @@ import java.util.Date;
 import static com.example.camera6.AllValueToChange.*;
 
 public class CreateMyFile {
-    private File mCurrentFile;
     private MediaRecorder mMediaRecorder;
 
     public MediaRecorder getMediaRecorder() {
@@ -23,7 +22,7 @@ public class CreateMyFile {
         mMediaRecorder = new MediaRecorder();
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        mCurrentFile = new File(createDirectory(folderName), generateFileName());
+        File mCurrentFile = new File(createDirectory(folderName), generateFileName());
         mMediaRecorder.setOutputFile(mCurrentFile.getAbsolutePath());
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
         mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);

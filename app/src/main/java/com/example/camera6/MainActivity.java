@@ -27,7 +27,6 @@ public class MainActivity extends AppCompatActivity {
     private static View autoRecord;
 
     private CameraService myCameras = null;
-    private CameraManager mCameraManager = null;
     private TextureView mImageView = null;
     private StartCameraSource myStartEvent;
     private Button userStartStopRecordButton;
@@ -35,7 +34,7 @@ public class MainActivity extends AppCompatActivity {
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
-    protected void onCreate(Bundle savedInstanceState) {// = publick static void main(String args[]) //начало
+    protected void onCreate(Bundle savedInstanceState) {// = public static void main(String args[]) //начало
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);// убираем заголовок
         setContentView(R.layout.activity_main);
@@ -63,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
         userRecord = findViewById(R.id.userRecord); // находим иконку отвечающую за Принудительную запись
         autoRecord = findViewById(R.id.autoRecord); // находим иконку отвечающую за Принудительную запись
         myStartEvent = new StartCameraSource();
-        mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        CameraManager mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         myCameras = new CameraService(mCameraManager, mImageView, myStartEvent);
     }
 
@@ -85,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    if (event.getStart() == true) {
+                    if (event.getStart()) {
                         Log.i(myLog, "Start");
                         myCameras.startRecording();
                     } else {
