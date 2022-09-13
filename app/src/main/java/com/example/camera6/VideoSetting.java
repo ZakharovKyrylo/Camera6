@@ -11,7 +11,7 @@ import java.util.Date;
 
 import static com.example.camera6.AllValueToChange.*;
 
-public class CreateMyFile {
+public class VideoSetting {
     private MediaRecorder mMediaRecorder;
 
     public MediaRecorder getMediaRecorder() {
@@ -26,7 +26,7 @@ public class CreateMyFile {
         mMediaRecorder.setOutputFile(mCurrentFile.getAbsolutePath());
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
         mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
-        mMediaRecorder.setVideoSize(profile.videoFrameWidth, profile.videoFrameHeight);
+        mMediaRecorder.setVideoSize( widthSurface, heightSurface);
         mMediaRecorder.setVideoEncodingBitRate(profile.videoBitRate);
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         try {
@@ -40,7 +40,7 @@ public class CreateMyFile {
     // генерация имени файла
     private String generateFileName() { // название файла в виде дата,месяц,год_час,минута,секунда
         Date dateNow = new Date();//("yyyy.MM.dd 'и время' hh:mm:ss a zzz");
-        SimpleDateFormat formatForDateNow = new SimpleDateFormat("dd.MM.yyyy_hh:mm:ss");
+        SimpleDateFormat formatForDateNow = new SimpleDateFormat("dd.MM.yyyy_HH:mm:ss");
         return ("" + formatForDateNow.format(dateNow) + ".mp4");
     }
 

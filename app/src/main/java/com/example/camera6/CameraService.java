@@ -27,8 +27,14 @@ import java.util.TimerTask;
 import androidx.annotation.NonNull;
 
 import static androidx.core.content.ContextCompat.checkSelfPermission;
-import static com.example.camera6.AllValueToChange.*;
-import static com.example.camera6.MainActivity.isAutoRecordVisible;
+import static com.example.camera6.AllValueToChange.heightScreen;
+import static com.example.camera6.AllValueToChange.heightSurface;
+import static com.example.camera6.AllValueToChange.mCameraID;
+import static com.example.camera6.AllValueToChange.myLog;
+import static com.example.camera6.AllValueToChange.recordTime;
+import static com.example.camera6.AllValueToChange.screenDelay;
+import static com.example.camera6.AllValueToChange.widthScreen;
+import static com.example.camera6.AllValueToChange.widthSurface;
 
 public class CameraService {
 
@@ -45,17 +51,30 @@ public class CameraService {
     private MediaRecorder mMediaRecorder = null;
     private StartCameraSource myStartEvent;
     private Handler mBackgroundHandler = null;
-    private Handler mScreenHandler = null;
     private HandlerThread mBackgroundThread;
-    private HandlerThread mScreenThread;
-    private CreateMyFile createMyFile = new CreateMyFile();
+    private Handler screenHandler = null;
+    private HandlerThread screenThread;
+    private VideoSetting createMyFile = new VideoSetting();
+    private Surface surface;
 
     public CameraService(CameraManager cameraManager, TextureView mImageView, StartCameraSource myStartEvent) {
         this.mCameraManager = cameraManager;
         this.mImageView = mImageView;
         this.myStartEvent = myStartEvent;
-        startScreenThread();
-        startBackgroundThread();
+        mScreenDetector = new ScreenDetector(myStartEvent);
+        this.startScreenThread();
+        this.startBackgroundThread();
+    }
+
+    @SuppressLint("NewApi")//проверяем, получено ли разрешение на использование камеры
+    public void openCamera() {
+        try {
+            if (checkSelfPermission(this.mImageView.getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                mCameraManager.openCamera(mCameraID, mCameraCallback, null);
+            }
+        } catch (CameraAccessException e) {
+            Log.i(myLog, e.toString());
+        }
     }
 
     // открытие камеры
@@ -75,82 +94,73 @@ public class CameraService {
         }
     };
 
-    @SuppressLint("NewApi")
-    public void openCamera() {//проверяем, получено ли разрешение на использование камеры
-        try {
-            if (checkSelfPermission(this.mImageView.getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                mCameraManager.openCamera(mCameraID, mCameraCallback, null);
-            }
-        } catch (CameraAccessException e) {
-            Log.i(myLog, e.toString());
-        }
-    }
-
     // ToDo
     private void startCameraPreviewSession() {  // вывод изображения на экран во время
-        surfaceList.clear();
-        timerForScreen = new Timer();
-        SurfaceTexture texture = mImageView.getSurfaceTexture();
         mImageReader = ImageReader.newInstance(widthScreen, heightScreen, ImageFormat.JPEG, 1);
-        mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
-        texture.setDefaultBufferSize(1920, 1080);
-        Surface surface = new Surface(texture);
+        mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, screenHandler);
+        this.createSurface();
         try {
-            surfaceList.add(surface);
             surfaceList.add(mImageReader.getSurface());
-            mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
             mPreviewBuilder.addTarget(surface);
-            createCameraDevice();
+            mCameraDevice.createCaptureSession(surfaceList, previewStateCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-        startTimerForScreen();
+        this.startTimerForScreen();
     }
 
-    private void startRecordSession(){
+    private void startRecordSession() {
+        this.createSurface();
         mPreviewBuilder.addTarget(mMediaRecorder.getSurface());
-        surfaceList.set(1, mMediaRecorder.getSurface());
+        surfaceList.add(mMediaRecorder.getSurface());
         try {
-            createCameraDevice();
+            mCameraDevice.createCaptureSession(surfaceList, previewStateCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
-    private void createCameraDevice() throws CameraAccessException{
-        mCameraDevice.createCaptureSession(surfaceList, new CameraCaptureSession.StateCallback() {
-            @Override
-            public void onConfigured(CameraCaptureSession session) {
-                mSession = session;
-                try {
-                    mSession.setRepeatingRequest(mPreviewBuilder.build(), null, mBackgroundHandler);
-                } catch (CameraAccessException e) {
-                    e.printStackTrace();
-                }
-            }
-            @Override
-            public void onConfigureFailed(CameraCaptureSession session) {
-            }
-        }, mBackgroundHandler);
+    private void createSurface() {
+        surfaceList.clear();
+        SurfaceTexture texture = mImageView.getSurfaceTexture();
+        texture.setDefaultBufferSize(widthSurface, heightSurface);
+        surface = new Surface(texture);
+        surfaceList.add(surface);
     }
+
+    CameraCaptureSession.StateCallback previewStateCallback = new CameraCaptureSession.StateCallback() {
+        @Override
+        public void onConfigured(@NonNull CameraCaptureSession session) {
+            mSession = session;
+            try {
+                mSession.setRepeatingRequest(mPreviewBuilder.build(), null, mBackgroundHandler);
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
+        }
+        @Override
+        public void onConfigureFailed(@NonNull CameraCaptureSession session) {
+        }
+    };
 
     private void startTimerForScreen() {
-        if (!isAutoRecordVisible()) {
-            timerForScreen.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    makePhoto();
-                }
-            }, screenDelay, screenDelay);
-        }
+        timerForScreen = new Timer();
+        timerForScreen.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                makePhoto();
+            }
+        }, screenDelay, screenDelay);
     }
 
+    // разобратся что тут происходит
     // Запрос на готовность фото
     private void makePhoto() {
         try {
             // This is the CaptureRequest.Builder that we use to take a picture.
             final CaptureRequest.Builder captureBuilder =
-                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
             captureBuilder.addTarget(mImageReader.getSurface());
             CameraCaptureSession.CaptureCallback CaptureCallback = new CameraCaptureSession.CaptureCallback() {
                 @Override
@@ -160,8 +170,7 @@ public class CameraService {
 
                 }
             };
-            mSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundHandler);
-            //    mSession.capture(captureBuilder.build(), CaptureCallback, mScreenHandler);
+            mSession.capture(captureBuilder.build(), CaptureCallback, screenHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -173,11 +182,10 @@ public class CameraService {
         @Override
         public void onImageAvailable(ImageReader reader) {
             try {
-                mScreenDetector = new ScreenDetector(reader.acquireNextImage(), myStartEvent);
-                // mBackgroundHandler.post(mScreenDetector);
-                mScreenHandler.post(mScreenDetector);
+                mScreenDetector.startNewImage(reader.acquireNextImage());
+//                mScreenHandler.post(mScreenDetector);
             } catch (Exception e) {
-                Log.i(myLog, e.toString());
+                Log.i(myLog, "mOnImageAvailableListener");
             }
         }
     };
@@ -188,8 +196,7 @@ public class CameraService {
         createMyFile.setUpMediaRecorder();
         mMediaRecorder = createMyFile.getMediaRecorder();
         mMediaRecorder.start();
-        startRecordSession();
-//        this.startCameraPreviewSession();
+        this.startRecordSession();
         timerStopRec.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -201,7 +208,7 @@ public class CameraService {
     public void stopRecordingVideo() {
         MainActivity.iconAutoRecordReset();
         mScreenDetector.setFirstStart();
-        stopRepeatingMyRecord();
+        this.stopRepeatingMyRecord();
         try {
             mMediaRecorder.stop();
         } catch (Exception e) {
@@ -225,9 +232,9 @@ public class CameraService {
     }
 
     protected void startScreenThread() {
-        mScreenThread = new HandlerThread("CameraScreen");
-        mScreenThread.start();
-        mScreenHandler = new Handler(mScreenThread.getLooper());
+        screenThread = new HandlerThread("CameraScreen");
+        screenThread.start();
+        screenHandler = new Handler(screenThread.getLooper());
     }
 
     protected void startBackgroundThread() {

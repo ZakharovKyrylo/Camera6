@@ -6,8 +6,11 @@ public class AllValueToChange {
     public static final String folderName = "DETECTION";
 
     public static final int recordTime = 8 * 1000; // 2 * 60 * 1000
-    public static final int screenDelay = 1000; // = 1 sec
+    public static final int screenDelay = 1000;
     public static final int maxDetection =11;
-    public static final int widthScreen =160;
-    public static final int heightScreen =120;
+    public static final int widthScreen =50;
+    public static final int heightScreen =20;
+
+    public static final int widthSurface =1440;
+    public static final int heightSurface =1080;
 }
