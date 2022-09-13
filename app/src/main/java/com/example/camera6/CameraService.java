@@ -61,7 +61,7 @@ public class CameraService {
         this.mCameraManager = cameraManager;
         this.mImageView = mImageView;
         this.myStartEvent = myStartEvent;
-        mScreenDetector = new ScreenDetector(myStartEvent);
+        this.mScreenDetector = new ScreenDetector(myStartEvent);
         this.startScreenThread();
         this.startBackgroundThread();
     }
@@ -139,6 +139,7 @@ public class CameraService {
                 e.printStackTrace();
             }
         }
+
         @Override
         public void onConfigureFailed(@NonNull CameraCaptureSession session) {
         }
@@ -149,7 +150,9 @@ public class CameraService {
         timerForScreen.schedule(new TimerTask() {
             @Override
             public void run() {
-                makePhoto();
+                if (!MainActivity.isAutoRecordVisible()) {
+                    makePhoto();
+                }
             }
         }, screenDelay, screenDelay);
     }
